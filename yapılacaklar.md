@@ -48,7 +48,7 @@ Seçenekler:
 
 - [ ] Railway MySQL
 - [ ] Aiven MySQL
-- [ ] PlanetScale veya benzeri MySQL uyumlu servis
+- [x] PlanetScale veya benzeri MySQL uyumlu servis
 - [ ] Kendi sunucundaki MySQL
 
 Dikkat:
@@ -64,38 +64,38 @@ uvicorn api:app --host 0.0.0.0 --port $PORT
 
 Kontrol edilecekler:
 
-- [ ] `backend/requirements.txt` canlı için yeterli mi?
-- [ ] `fastapi`, `uvicorn`, `requests`, `mysql-connector-python` mevcut mu?
-- [ ] Render root directory `backend` olarak ayarlanacak mı?
+- [x] `backend/requirements.txt` canlı için yeterli mi?
+- [x] `fastapi`, `uvicorn`, `requests`, `mysql-connector-python` mevcut mu?
+- [x] Render root directory `backend` olarak ayarlanacak mı?
 
 ---
 
 ## 3. Backend Render Deploy Adımları
 
-- [ ] Proje GitHub'a yüklenecek.
-- [ ] Render'da yeni Web Service oluşturulacak.
-- [ ] GitHub repo bağlanacak.
-- [ ] Root directory olarak `backend` seçilecek.
-- [ ] Build command:
+- [x] Proje GitHub'a yüklenecek.
+- [x] Render'da yeni Web Service oluşturulacak.
+- [x] GitHub repo bağlanacak.
+- [x] Root directory olarak `backend` seçilecek.
+- [x] Build command:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-- [ ] Start command:
+- [x] Start command:
 
 ```bash
 uvicorn api:app --host 0.0.0.0 --port $PORT
 ```
 
-- [ ] Environment variables girilecek:
+- [x] Environment variables girilecek:
   - `DB_HOST`
   - `DB_USER`
   - `DB_PASSWORD`
   - `DB_NAME`
   - `DB_PORT`
 
-- [ ] Deploy sonrası backend URL alınacak.
+- [x] Deploy sonrası backend URL alınacak.
 
 Örnek:
 
@@ -109,13 +109,13 @@ https://yerini-bul-backend.onrender.com
 
 Render deploy sonrası şu endpointler test edilecek:
 
-- [ ] Ana API ayakta mı?
+- [x] Ana API ayakta mı?
 
 ```txt
 https://BACKEND_URL/docs
 ```
 
-- [ ] Şehir listesi geliyor mu?
+- [x] Şehir listesi geliyor mu?
 
 ```txt
 https://BACKEND_URL/api/sehirler
@@ -133,7 +133,7 @@ https://BACKEND_URL/api/ilceler/İstanbul
 https://BACKEND_URL/api/mahalleler/İstanbul/Kadıköy
 ```
 
-- [ ] Örnek mahalle skoru geliyor mu?
+- [x] Örnek mahalle skoru geliyor mu?
 
 ```txt
 https://BACKEND_URL/api/mahalle-veri/İstanbul/Kadıköy/Caferağa%20Mah.
@@ -160,41 +160,45 @@ VITE_API_URL=https://BACKEND_URL
 
 Yapılacaklar:
 
-- [ ] Netlify'da `VITE_API_URL` tanımlanacak.
-- [ ] Değer Render backend URL olacak.
+- [x] Netlify'da `VITE_API_URL` tanımlanacak.
+- [x] Değer Render backend URL olacak.
 - [ ] Local fallback olan `http://localhost:8000` korunacak.
 
 ---
 
 ## 6. Frontend Netlify Deploy Adımları
 
-- [ ] Netlify'da yeni site oluşturulacak.
-- [ ] GitHub repo bağlanacak.
-- [ ] Base directory:
+- [x] Netlify'da yeni site oluşturulacak.
+- [x] GitHub repo bağlanacak.
+- [x] Base directory:
 
 ```txt
 frontend
 ```
 
-- [ ] Build command:
+- [x] Build command:
 
 ```bash
 npm run build
 ```
 
-- [ ] Publish directory:
+- [x] Publish directory:
 
 ```txt
-frontend/dist
+dist
 ```
 
-- [ ] Environment variable girilecek:
+Not:
+Netlify'da `Base directory` alanı `frontend` ise publish directory `dist` olmalı.
+Eğer base directory boş bırakılırsa publish directory `frontend/dist` kullanılabilir.
+
+- [x] Environment variable girilecek:
 
 ```txt
 VITE_API_URL=https://BACKEND_URL
 ```
 
-- [ ] Deploy alınacak.
+- [x] Deploy alınacak.
 
 ---
 
@@ -212,8 +216,8 @@ https://yerini-bul.netlify.app
 
 Yapılacaklar:
 
-- [ ] Netlify canlı URL alınacak.
-- [ ] Backend CORS `allow_origins` listesine eklenecek.
+- [x] Netlify canlı URL alınacak.
+- [x] Backend CORS `allow_origins` listesine eklenecek.
 - [ ] Backend tekrar deploy edilecek.
 
 Not:
@@ -227,7 +231,7 @@ Canlı MySQL hazır olduktan sonra tablolar oluşturulmalı.
 
 Yapılacaklar:
 
-- [ ] Canlı DB bilgileri ile backend environment ayarları girilecek.
+- [x] Canlı DB bilgileri ile backend environment ayarları girilecek.
 - [ ] Render shell veya geçici local bağlantı üzerinden:
 
 ```bash
@@ -236,7 +240,7 @@ python db_setup.py
 
 çalıştırılacak.
 
-- [ ] `mahalle_score` veritabanı ve tablolar oluştu mu kontrol edilecek.
+- [x] `mahalle_score` veritabanı ve tablolar oluştu mu kontrol edilecek.
 
 Tablolar:
 
@@ -252,8 +256,8 @@ Tablolar:
 
 Netlify frontend ve Render backend yayına çıktıktan sonra:
 
-- [ ] Netlify site açılıyor mu?
-- [ ] Şehir dropdown doluyor mu?
+- [x] Netlify site açılıyor mu?
+- [x] Şehir dropdown doluyor mu?
 - [ ] İlçe dropdown doluyor mu?
 - [ ] Mahalle dropdown doluyor mu?
 - [ ] İki mahalle seçilip karşılaştırma başlıyor mu?
