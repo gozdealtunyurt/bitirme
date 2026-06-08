@@ -28,6 +28,7 @@ OVERPASS_MAX_RETRIES = len(OVERPASS_URLS)
 # Büyük yarıçap komşu mahalleleri skora dahil ettiği için bilinçli olarak dar tutulur.
 FALLBACK_RADIUS_M = 1500
 EXPANDED_FALLBACK_RADIUS_M = 3000
+WIDE_FALLBACK_RADIUS_M = 5000
 LIVE_FETCH_BUDGET_SEC = 70
 
 KATEGORILER = {
@@ -447,6 +448,10 @@ def _total_result_count(results: dict[str, list]) -> int:
     if not results:
         return 0
     return sum(len(items) for items in results.values())
+
+
+def _empty_kategori_results() -> dict[str, list]:
+    return {k: [] for k in KATEGORILER}
 
 
 def _extract_boundary_center(data: dict) -> Tuple[Optional[float], Optional[float]]:
@@ -891,6 +896,31 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
             veri_kaynagi = "osm_iceren_alan"
 
     if sinir_var:
+        if _total_result_count(tum_sonuclar) == 0 and centroid_lat and centroid_lon:
+            print(f"  Boundary returned 0 places; trying ~{EXPANDED_FALLBACK_RADIUS_M}m radius fallback...")
+            fallback_sonuclar = fetch_all_kategoriler_by_radius(
+                centroid_lat,
+                centroid_lon,
+                radius_m=EXPANDED_FALLBACK_RADIUS_M,
+            )
+            if fallback_sonuclar is not None and _total_result_count(fallback_sonuclar) > 0:
+                tum_sonuclar = fallback_sonuclar
+                sinir_var = False
+                veri_kaynagi = "osm_sinir_yetersiz_yaklasik_yaricap"
+            else:
+                print(f"  Radius fallback returned 0 places; trying ~{WIDE_FALLBACK_RADIUS_M}m wide fallback...")
+                fallback_sonuclar = fetch_all_kategoriler_by_radius(
+                    centroid_lat,
+                    centroid_lon,
+                    radius_m=WIDE_FALLBACK_RADIUS_M,
+                )
+                if fallback_sonuclar is not None and _total_result_count(fallback_sonuclar) > 0:
+                    tum_sonuclar = fallback_sonuclar
+                    sinir_var = False
+                    veri_kaynagi = "osm_sinir_yetersiz_genis_yaricap"
+        if _total_result_count(tum_sonuclar) == 0:
+            sinir_var = False
+            veri_kaynagi = "osm_sinir_veri_yetersiz"
         print("  Çekim modu: idari mahalle sınırı")
     else:
         print("  Mahalle sınırı bulunamadı; merkez + yarıçap fallback kullanılacak.")
@@ -946,6 +976,24 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
         sinir_var = False
         veri_kaynagi = "yaklasik_yaricap_genis"
 
+    if (
+        not sinir_var
+        and _total_result_count(tum_sonuclar) == 0
+        and centroid_lat
+        and centroid_lon
+        and _elapsed_sec(started_at) < LIVE_FETCH_BUDGET_SEC
+    ):
+        print(f"  Wide fallback returned 0 places; trying ~{WIDE_FALLBACK_RADIUS_M}m showcase fallback...")
+        wide_sonuclar = fetch_all_kategoriler_by_radius(
+            centroid_lat,
+            centroid_lon,
+            radius_m=WIDE_FALLBACK_RADIUS_M,
+        )
+        if wide_sonuclar is not None:
+            tum_sonuclar = wide_sonuclar
+        sinir_var = False
+        veri_kaynagi = "yaklasik_yaricap_cok_genis"
+
     elif not sinir_var and _total_result_count(tum_sonuclar) == 0 and centroid_lat and centroid_lon:
         print("  İlk çekim 0 tesis döndürdü; süre bütçesi dolduğu için geniş fallback atlandı.")
         bos_sonuc_gecerli = True
@@ -956,7 +1004,10 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
             result = get_scores_from_db(mahalle_id)
             result["uyari"] = "Canli OSM cekimi basarisiz oldu; mevcut cache sonucu gosteriliyor."
             return result
-        raise RuntimeError("OSM/Overpass bu mahalle icin tesis verisi dondurmedi; skor hesaplanamadi.")
+        print("  OSM returned 0 places; returning a low-confidence empty result instead of failing.")
+        tum_sonuclar = _empty_kategori_results()
+        veri_kaynagi = veri_kaynagi or "osm_veri_yetersiz"
+        bos_sonuc_gecerli = True
 
     all_counts = {}
     save_centroid_to_db(mahalle_id, centroid_lat, centroid_lon, yaklasik=not sinir_var)
@@ -968,6 +1019,7 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
     # 3. Skor hesapla
     skorlar, toplam, detaylar = hesapla_tum_skorlar(mahalle_id)
     last_fetched_iso = datetime.now().isoformat()
+    veri_yetersiz = _total_result_count(tum_sonuclar) == 0
 
     return {
         "mahalle_id": mahalle_id,
@@ -977,10 +1029,13 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
         "last_fetched": last_fetched_iso,
         "yaklasik_alan": not sinir_var,
         "veri_kaynagi": veri_kaynagi,
-        "veri_guveni": "yuksek" if sinir_var else "orta",
+        "veri_guveni": "dusuk" if veri_yetersiz else ("yuksek" if sinir_var else "orta"),
         "veri_uyarisi": (
-            "OSM'de idari mahalle siniri bulunamadigi icin veriler merkez koordinat etrafindaki yaklasik yaricapla hesaplanmistir."
-            if not sinir_var else None
+            "OSM'de bu mahalle icin yeterli tesis verisi bulunamadigi icin skorlar veri yetersiz olarak gosterilmistir."
+            if veri_yetersiz else (
+                "OSM'de idari mahalle siniri bulunamadigi veya sinir verisi yetersiz oldugu icin veriler merkez koordinat etrafindaki yaklasik yaricapla hesaplanmistir."
+                if not sinir_var else None
+            )
         ),
         "counts": all_counts,
         "skorlar": skorlar,
