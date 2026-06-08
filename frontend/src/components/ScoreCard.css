@@ -1,0 +1,160 @@
+.score-card {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.score-card-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e3ebe5;
+  text-align: center;
+}
+
+.score-card-title {
+  color: #37463d;
+  font-size: 0.82rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.score-card-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+}
+
+.score-side {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 8px;
+  border: 0;
+  border-radius: 0;
+}
+
+.side-winner {
+  background: transparent;
+  border-color: transparent;
+}
+
+.score-circle {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  border: 4px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  box-shadow: none;
+}
+
+.score-num {
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.score-mahalle {
+  max-width: 120px;
+  color: #526059;
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.score-detail {
+  color: #829088;
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.score-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.score-explain {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  margin-top: 3px;
+  color: #5c6b61;
+  font-size: 0.68rem;
+  font-weight: 750;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.score-explain span {
+  min-height: 18px;
+  display: grid;
+  place-items: center;
+  overflow-wrap: anywhere;
+}
+
+.score-explain.empty {
+  color: #9aa59e;
+}
+
+.score-vs-line {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 34px;
+  border-radius: 999px;
+  background: transparent;
+  color: #6f7c73;
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .score-card-header {
+    padding: 10px 8px;
+  }
+
+  .score-card-body {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 12px 8px 16px;
+  }
+
+  .score-side {
+    width: 100%;
+    padding: 10px 4px;
+  }
+
+  .score-mahalle {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .score-explain {
+    max-width: 260px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 8px;
+    row-gap: 3px;
+  }
+
+  .score-vs-line {
+    width: 100%;
+    height: 24px;
+  }
+}

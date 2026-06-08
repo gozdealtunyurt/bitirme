@@ -1,0 +1,116 @@
+.location-selector {
+  min-height: 100%;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  backdrop-filter: none;
+}
+
+.location-selector:hover {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.selector-title {
+  margin: 0 0 18px;
+  color: #172033;
+  font-size: 1.05rem;
+  font-weight: 850;
+  text-align: left;
+}
+
+.dropdown-group {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.dropdown-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dropdown-wrapper label {
+  color: #66746b;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  text-align: left;
+}
+
+.dropdown-wrapper select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 40px 10px 12px;
+  border: 1px solid rgba(23, 107, 91, 0.14);
+  border-radius: 14px;
+  background:
+    linear-gradient(45deg, transparent 50%, #65736a 50%) right 16px center / 6px 6px no-repeat,
+    linear-gradient(135deg, #65736a 50%, transparent 50%) right 10px center / 6px 6px no-repeat,
+    rgba(255, 255, 255, 0.72);
+  color: #172033;
+  font-size: 0.94rem;
+  font-weight: 700;
+  text-align: left;
+  appearance: none;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.dropdown-wrapper select:hover:not(:disabled) {
+  border-color: rgba(23, 107, 91, 0.42);
+}
+
+.dropdown-wrapper select:focus {
+  outline: none;
+  border-color: #176b5b;
+  box-shadow: 0 0 0 3px rgba(23, 107, 91, 0.12);
+}
+
+.dropdown-wrapper select:disabled {
+  background-color: rgba(240, 243, 241, 0.8);
+  color: #9aa39d;
+  cursor: not-allowed;
+}
+
+.selection-result {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #526059;
+  font-size: 0.8rem;
+  font-weight: 800;
+  overflow: hidden;
+  justify-content: flex-start;
+}
+
+.selection-result span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selection-result .arrow {
+  flex: 0 0 auto;
+  color: #95a39b;
+}
+
+.selection-result .highlight {
+  color: #176b5b;
+}
+
+@media (max-width: 640px) {
+  .location-selector {
+    padding: 0;
+  }
+}

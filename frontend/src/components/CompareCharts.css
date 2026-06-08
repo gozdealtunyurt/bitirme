@@ -1,0 +1,141 @@
+.charts-section {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.chart-container,
+.detail-table-container {
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 18px 0;
+}
+
+.chart-container {
+  overflow: hidden;
+}
+
+.detail-table-container {
+  grid-column: 1 / -1;
+  overflow-x: auto;
+}
+
+.chart-title {
+  margin: 0 0 14px;
+  color: #37463d;
+  font-size: 0.86rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.detail-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.detail-table th {
+  padding: 11px 12px;
+  border-bottom: 1px solid #dfe8e2;
+  color: #66746b;
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.detail-table th:nth-child(2),
+.detail-table th:nth-child(3),
+.detail-table td:nth-child(2),
+.detail-table td:nth-child(3) {
+  text-align: center;
+}
+
+.detail-table th:nth-child(4),
+.detail-table td:nth-child(4) {
+  text-align: right;
+}
+
+.detail-table td {
+  padding: 12px;
+  border-bottom: 1px solid #edf2ef;
+}
+
+.td-kategori {
+  color: #2f3d35;
+  font-size: 0.86rem;
+  font-weight: 850;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.td-skor {
+  font-size: 1.02rem;
+  font-weight: 900;
+}
+
+.td-count {
+  margin-left: 6px;
+  color: #89948d;
+  font-size: 0.72rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.td-winner {
+  color: #176b5b;
+  font-size: 0.82rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.td-total {
+  font-size: 1.12rem;
+}
+
+.total-row {
+  background: transparent;
+}
+
+.total-row td {
+  border-bottom: 0;
+}
+
+@media (max-width: 860px) {
+  .charts-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .charts-section {
+    gap: 10px;
+  }
+
+  .chart-container,
+  .detail-table-container {
+    padding: 12px 0;
+  }
+
+  .detail-table {
+    min-width: 560px;
+  }
+
+  .detail-table th,
+  .detail-table td {
+    padding: 9px 8px;
+    font-size: 0.72rem;
+  }
+
+  .td-count {
+    display: block;
+    margin-left: 0;
+  }
+}
