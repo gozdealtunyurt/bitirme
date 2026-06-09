@@ -9,7 +9,9 @@ Strateji:
 import requests
 import time
 import json
+import re
 from datetime import datetime
+from difflib import SequenceMatcher
 from typing import Optional, Tuple
 from db_config import get_connection
 
@@ -22,7 +24,7 @@ OVERPASS_URLS = [
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 OVERPASS_HTTP_TIMEOUT = 15
-OVERPASS_MAX_RETRIES = len(OVERPASS_URLS)
+OVERPASS_MAX_RETRIES = 2
 
 # Sınır bulunamayan mahallelerde son çare olarak kullanılacak yarıçap.
 # Büyük yarıçap komşu mahalleleri skora dahil ettiği için bilinçli olarak dar tutulur.
@@ -223,10 +225,62 @@ def _matches_place_context(result: dict, sehir: str, ilce: str) -> bool:
     return sehir_ok and ilce_ok
 
 
+def _normalize_match_text(text: str) -> str:
+    text = _tr_lower(_extract_core_name(_format_osm_name(text or "")))
+    text = re.sub(r"\b(mahallesi|mahalle|mah)\b", "", text)
+    text = re.sub(r"[^a-zçğıöşü0-9]+", "", text)
+    return text
+
+
 def _names_match(candidate: str, target: str) -> bool:
-    candidate_core = _tr_lower(_extract_core_name(_format_osm_name(candidate or "")))
-    target_core = _tr_lower(_extract_core_name(_format_osm_name(target or "")))
+    candidate_core = _normalize_match_text(candidate)
+    target_core = _normalize_match_text(target)
     return bool(candidate_core and target_core and candidate_core == target_core)
+
+
+def _names_similar(candidate: str, target: str) -> bool:
+    candidate_core = _normalize_match_text(candidate)
+    target_core = _normalize_match_text(target)
+    if not candidate_core or not target_core:
+        return False
+    if candidate_core == target_core:
+        return True
+    return SequenceMatcher(None, candidate_core, target_core).ratio() >= 0.86
+
+
+def _nominatim_candidate_names(result: dict) -> list[str]:
+    names = []
+    for key in ("name", "display_name", "namedetails"):
+        value = result.get(key)
+        if isinstance(value, str):
+            names.append(value.split(",")[0])
+        elif isinstance(value, dict):
+            names.extend(str(v) for v in value.values() if v)
+
+    address = result.get("address") or {}
+    for key in ("neighbourhood", "suburb", "quarter", "city_district", "village", "town"):
+        value = address.get(key)
+        if value:
+            names.append(str(value))
+    return names
+
+
+def _matches_mahalle_name(result: dict, mahalle: str) -> bool:
+    return any(_names_similar(candidate, mahalle) for candidate in _nominatim_candidate_names(result))
+
+
+def _select_nominatim_result(results: list[dict], sehir: str, ilce: str, mahalle: str, require_polygon: bool = False) -> Optional[dict]:
+    for item in results:
+        if not _matches_place_context(item, sehir, ilce):
+            continue
+        if not _matches_mahalle_name(item, mahalle):
+            continue
+        if require_polygon:
+            geojson = item.get("geojson") or {}
+            if geojson.get("type") not in ("Polygon", "MultiPolygon"):
+                continue
+        return item
+    return None
 
 
 def _elapsed_sec(started_at: float) -> float:
@@ -330,7 +384,6 @@ def _fetch_centroid_from_nominatim(sehir: str, ilce: str, mahalle: str) -> Tuple
         f"{mahalle_core} Mahallesi, {ilce_norm}, {sehir}, Turkey",
         f"{mahalle_core}, {ilce_norm}, {sehir}, Turkey",
         f"{mahalle_core}, {sehir}, Turkey",          # ilçesiz dene
-        f"{ilce_norm}, {sehir}, Turkey",             # son çare: ilçe merkezi
     ]
 
     headers = {"User-Agent": "MahalleScore/1.0 (educational project)"}
@@ -339,16 +392,24 @@ def _fetch_centroid_from_nominatim(sehir: str, ilce: str, mahalle: str) -> Tuple
         try:
             resp = requests.get(
                 NOMINATIM_URL,
-                params={"q": q, "format": "json", "limit": 1, "countrycodes": "tr"},
+                params={
+                    "q": q,
+                    "format": "json",
+                    "limit": 5,
+                    "countrycodes": "tr",
+                    "addressdetails": 1,
+                    "namedetails": 1,
+                },
                 headers=headers,
                 timeout=10,
             )
             if resp.status_code != 200:
                 continue
             results = resp.json()
-            if results:
-                lat = float(results[0]["lat"])
-                lon = float(results[0]["lon"])
+            item = _select_nominatim_result(results, sehir, ilce, mahalle)
+            if item:
+                lat = float(item["lat"])
+                lon = float(item["lon"])
                 print(f"  Nominatim centroid ({q!r}): {lat:.4f}, {lon:.4f}")
                 return lat, lon
             time.sleep(1)  # Nominatim rate limit
@@ -534,6 +595,7 @@ def fetch_boundary_snapshot_from_nominatim(sehir: str, ilce: str, mahalle: str) 
                     "countrycodes": "tr",
                     "polygon_geojson": 1,
                     "addressdetails": 1,
+                    "namedetails": 1,
                     "extratags": 1,
                 },
                 headers=headers,
@@ -542,16 +604,11 @@ def fetch_boundary_snapshot_from_nominatim(sehir: str, ilce: str, mahalle: str) 
             if resp.status_code != 200:
                 continue
 
-            for item in resp.json():
-                if not _matches_place_context(item, sehir, ilce):
-                    continue
-
-                geojson = item.get("geojson") or {}
-                if geojson.get("type") not in ("Polygon", "MultiPolygon"):
-                    continue
-
+            item = _select_nominatim_result(resp.json(), sehir, ilce, mahalle, require_polygon=True)
+            if item:
                 area_id = _nominatim_area_id(item.get("osm_type"), item.get("osm_id"))
                 if not area_id:
+                    time.sleep(1)
                     continue
 
                 lat = float(item["lat"])
@@ -568,6 +625,7 @@ def fetch_boundary_snapshot_from_nominatim(sehir: str, ilce: str, mahalle: str) 
 
                 data = overpass_query(query, timeout_sec=18)
                 if data is None:
+                    time.sleep(1)
                     continue
 
                 print(f"  Nominatim OSM alanı kullanıldı ({item.get('osm_type')} {item.get('osm_id')}): {lat:.4f}, {lon:.4f}")

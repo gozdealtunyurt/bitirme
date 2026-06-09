@@ -203,4 +203,4 @@ Mahalle skor endpoint'leri su metrikleri dondurur:
 - `toplam_skor`: Kategori agirliklariyla hesaplanan genel mahalle skoru.
 - `veri_kaynagi`: Verinin hangi yontemle cekildigi.
 - `veri_guveni`: Yuksek/orta/dusuk guven seviyesi.
-- `veri_uyarisi`: Yaklasik alan veya veri yetersizligi durumunda aciklama.
+- `veri_uyarisi`: Yaklasik alan veya veri yetersizligi durumunda aciklama
