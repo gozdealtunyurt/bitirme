@@ -1018,12 +1018,19 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
     mahalle = _canonical_mahalle_name(mahalle)
     mahalle_id, last_fetched = get_or_create_mahalle(sehir, ilce, mahalle)
 
+<<<<<<< HEAD
     # Cache kontrolü: karşılaştırma ekranı hızlı açılsın diye dolu kayıt varsa döndür.
     # Daha doğru sınır verisi istenirse endpoint'e refresh=true gönderilir.
     cached_count = get_total_kategori_count(mahalle_id)
     cache_dolu = last_fetched is not None or cached_count > 0
     cache_kullanilabilir = cached_count > 0
     if cache_kullanilabilir and not force_refresh:
+=======
+    # Cache kontrolü: sadece gerçek tesis verisi olan kayıtları cache kabul et.
+    # Veri-yetersiz/0 tesis sonuçları last_fetched dolu olsa bile tekrar denenir.
+    cache_dolu = get_total_kategori_count(mahalle_id) > 0
+    if cache_dolu and not force_refresh:
+>>>>>>> 016ff032a032f33b7ad4f56eba84e7bcda9bb769
         print(f"Cache'den getiriliyor: {mahalle} (son çekim: {last_fetched})")
         return get_scores_from_db(mahalle_id)
     if cache_dolu and not force_refresh:
