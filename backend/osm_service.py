@@ -23,15 +23,14 @@ OVERPASS_URLS = [
 ]
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
-OVERPASS_HTTP_TIMEOUT = 15
-OVERPASS_MAX_RETRIES = 2
+OVERPASS_HTTP_TIMEOUT = 10
+OVERPASS_MAX_RETRIES = 1
 
 # Sınır bulunamayan mahallelerde son çare olarak kullanılacak yarıçap.
 # Büyük yarıçap komşu mahalleleri skora dahil ettiği için bilinçli olarak dar tutulur.
 FALLBACK_RADIUS_M = 1500
 EXPANDED_FALLBACK_RADIUS_M = 3000
-WIDE_FALLBACK_RADIUS_M = 5000
-LIVE_FETCH_BUDGET_SEC = 70
+LIVE_FETCH_BUDGET_SEC = 35
 
 KATEGORILER = {
     "saglik": {
@@ -336,7 +335,7 @@ def _fetch_centroid_from_boundary(sehir: str, ilce: str, mahalle: str) -> Tuple[
     mahalle_lines = _mahalle_relation_lines(_name_variants(mahalle))
 
     query = f"""
-    [out:json][timeout:18];
+    [out:json][timeout:12];
     (
       {sehir_lines}
     )->.sehirRel;
@@ -351,7 +350,7 @@ def _fetch_centroid_from_boundary(sehir: str, ilce: str, mahalle: str) -> Tuple[
     out center;
     """
 
-    data = overpass_query(query, timeout_sec=18)
+    data = overpass_query(query, timeout_sec=12)
     if not data:
         return None, None
 
@@ -383,7 +382,6 @@ def _fetch_centroid_from_nominatim(sehir: str, ilce: str, mahalle: str) -> Tuple
     queries = [
         f"{mahalle_core} Mahallesi, {ilce_norm}, {sehir}, Turkey",
         f"{mahalle_core}, {ilce_norm}, {sehir}, Turkey",
-        f"{mahalle_core}, {sehir}, Turkey",          # ilçesiz dene
     ]
 
     headers = {"User-Agent": "MahalleScore/1.0 (educational project)"}
@@ -401,7 +399,7 @@ def _fetch_centroid_from_nominatim(sehir: str, ilce: str, mahalle: str) -> Tuple
                     "namedetails": 1,
                 },
                 headers=headers,
-                timeout=10,
+                timeout=6,
             )
             if resp.status_code != 200:
                 continue
@@ -515,6 +513,20 @@ def _empty_kategori_results() -> dict[str, list]:
     return {k: [] for k in KATEGORILER}
 
 
+def _zero_result_reason(veri_kaynagi: Optional[str], sinir_var: bool, centroid_lat: Optional[float], centroid_lon: Optional[float]) -> str:
+    if not centroid_lat or not centroid_lon:
+        return "Mahalle icin guvenilir merkez koordinat bulunamadi."
+    if veri_kaynagi == "osm_sinir_veri_yetersiz":
+        return "OSM'de mahalle siniri bulundu ancak bu sinir icinde secili tesis tag'leri bulunamadi."
+    if veri_kaynagi == "yaklasik_yaricap_genis":
+        return f"Mahalle merkezi bulundu ancak {EXPANDED_FALLBACK_RADIUS_M}m yaricap icinde secili tesis tag'leri bulunamadi."
+    if veri_kaynagi == "yaklasik_yaricap":
+        return f"Mahalle siniri bulunamadi; {FALLBACK_RADIUS_M}m yaricap icinde secili tesis tag'leri bulunamadi."
+    if veri_kaynagi in ("nominatim_osm_sinir", "osm_iceren_alan", "osm_sinir") or sinir_var:
+        return "Mahalle siniri bulundu ancak OSM bu alan icin secili tesis verisi dondurmedi."
+    return "OSM/Nominatim alan veya tesis verisi bu mahalle icin yetersiz dondu."
+
+
 def _ring_area_score(ring: list) -> float:
     """Kabaca en büyük polygon halkasını seçmek için shoelace alanı."""
     if not ring or len(ring) < 4:
@@ -596,7 +608,7 @@ def fetch_boundary_snapshot(sehir: str, ilce: str, mahalle: str) -> Tuple[Option
     mahalle_lines = _mahalle_relation_lines(_name_variants(mahalle))
 
     query = f"""
-    [out:json][timeout:18];
+    [out:json][timeout:12];
     (
       {sehir_lines}
     )->.sehirRel;
@@ -616,7 +628,7 @@ def fetch_boundary_snapshot(sehir: str, ilce: str, mahalle: str) -> Tuple[Option
     out center tags qt;
     """
 
-    data = overpass_query(query, timeout_sec=18)
+    data = overpass_query(query, timeout_sec=12)
     if not data:
         return None, None, None
 
@@ -637,7 +649,6 @@ def fetch_boundary_snapshot_from_nominatim(sehir: str, ilce: str, mahalle: str) 
     mahalle_core = _extract_core_name(mahalle)
     queries = [
         f"{mahalle_core} Mahallesi, {ilce_norm}, {sehir}, Turkey",
-        f"{mahalle_core}, {ilce_norm}, {sehir}, Turkey",
     ]
     headers = {"User-Agent": "MahalleScore/1.0 (educational project)"}
 
@@ -656,7 +667,7 @@ def fetch_boundary_snapshot_from_nominatim(sehir: str, ilce: str, mahalle: str) 
                     "extratags": 1,
                 },
                 headers=headers,
-                timeout=10,
+                timeout=6,
             )
             if resp.status_code != 200:
                 continue
@@ -681,7 +692,7 @@ def fetch_boundary_snapshot_from_nominatim(sehir: str, ilce: str, mahalle: str) 
                 lon = float(item["lon"])
                 nwr_lines = _build_nwr_lines("area.mahalle")
                 query = f"""
-                [out:json][timeout:18];
+                [out:json][timeout:12];
                 area({area_id})->.mahalle;
                 (
                   {nwr_lines}
@@ -689,7 +700,7 @@ def fetch_boundary_snapshot_from_nominatim(sehir: str, ilce: str, mahalle: str) 
                 out center tags qt;
                 """
 
-                data = overpass_query(query, timeout_sec=18)
+                data = overpass_query(query, timeout_sec=12)
                 if data is None:
                     if poly:
                         polygon_results = fetch_all_kategoriler_by_polygon(poly)
@@ -752,14 +763,14 @@ def fetch_boundary_snapshot_from_containing_area(sehir: str, ilce: str, mahalle:
 
     nwr_lines = _build_nwr_lines("area.mahalle")
     query = f"""
-    [out:json][timeout:18];
+    [out:json][timeout:12];
     area({area_id})->.mahalle;
     (
       {nwr_lines}
     );
     out center tags qt;
     """
-    data = overpass_query(query, timeout_sec=18)
+    data = overpass_query(query, timeout_sec=12)
     if data is None:
         return lat, lon, None
 
@@ -775,7 +786,7 @@ def fetch_all_kategoriler_by_boundary(sehir: str, ilce: str, mahalle: str) -> di
     mahalle_lines = _mahalle_relation_lines(_name_variants(mahalle))
 
     query = f"""
-    [out:json][timeout:18];
+    [out:json][timeout:12];
     (
       {sehir_lines}
     )->.sehirRel;
@@ -793,7 +804,7 @@ def fetch_all_kategoriler_by_boundary(sehir: str, ilce: str, mahalle: str) -> di
     );
     out center tags qt;
     """
-    data = overpass_query(query, timeout_sec=18)
+    data = overpass_query(query, timeout_sec=12)
     if not data:
         return {k: [] for k in KATEGORILER}
     return _parse_all_kategoriler(data)
@@ -803,13 +814,13 @@ def fetch_all_kategoriler_by_polygon(poly: str) -> Optional[dict[str, list]]:
     """Nominatim/OSM harita polygon'u içindeki tüm kategorileri çeker."""
     nwr_lines = _build_nwr_lines(f'poly:"{poly}"')
     query = f"""
-    [out:json][timeout:18];
+    [out:json][timeout:12];
     (
       {nwr_lines}
     );
     out center tags qt;
     """
-    data = overpass_query(query, timeout_sec=18)
+    data = overpass_query(query, timeout_sec=12)
     if data is None:
         return None
     return _parse_all_kategoriler(data)
@@ -824,13 +835,13 @@ def fetch_all_kategoriler_by_radius_split(lat: float, lon: float, radius_m: int)
     for kategori in KATEGORILER:
         nwr_lines = _build_kategori_nwr_lines(kategori, f"around:{radius_m},{lat},{lon}")
         query = f"""
-        [out:json][timeout:18];
+        [out:json][timeout:10];
         (
           {nwr_lines}
         );
         out center tags qt;
         """
-        data = overpass_query(query, timeout_sec=18)
+        data = overpass_query(query, timeout_sec=10)
         if data is None:
             print(f"  {kategori} kategori sorgusu yanıt vermedi.")
             return None
@@ -844,13 +855,13 @@ def fetch_all_kategoriler_by_radius(lat: float, lon: float, radius_m: int = FALL
     nwr_lines = _build_nwr_lines(f"around:{radius_m},{lat},{lon}")
 
     query = f"""
-    [out:json][timeout:15];
+    [out:json][timeout:10];
     (
       {nwr_lines}
     );
     out center tags qt;
     """
-    data = overpass_query(query, timeout_sec=15)
+    data = overpass_query(query, timeout_sec=10)
     if data is not None:
         return _parse_all_kategoriler(data)
 
@@ -1018,22 +1029,14 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
     mahalle = _canonical_mahalle_name(mahalle)
     mahalle_id, last_fetched = get_or_create_mahalle(sehir, ilce, mahalle)
 
-<<<<<<< HEAD
-    # Cache kontrolü: karşılaştırma ekranı hızlı açılsın diye dolu kayıt varsa döndür.
-    # Daha doğru sınır verisi istenirse endpoint'e refresh=true gönderilir.
-    cached_count = get_total_kategori_count(mahalle_id)
-    cache_dolu = last_fetched is not None or cached_count > 0
-    cache_kullanilabilir = cached_count > 0
-    if cache_kullanilabilir and not force_refresh:
-=======
     # Cache kontrolü: sadece gerçek tesis verisi olan kayıtları cache kabul et.
     # Veri-yetersiz/0 tesis sonuçları last_fetched dolu olsa bile tekrar denenir.
-    cache_dolu = get_total_kategori_count(mahalle_id) > 0
+    cached_count = get_total_kategori_count(mahalle_id)
+    cache_dolu = cached_count > 0
     if cache_dolu and not force_refresh:
->>>>>>> 016ff032a032f33b7ad4f56eba84e7bcda9bb769
         print(f"Cache'den getiriliyor: {mahalle} (son çekim: {last_fetched})")
         return get_scores_from_db(mahalle_id)
-    if cache_dolu and not force_refresh:
+    if last_fetched and not force_refresh:
         print(f"  Cache 0 tesis içeriyor; güncel OSM verisi tekrar denenecek: {mahalle}")
 
     print(f"OSM'den çekiliyor: {sehir} > {ilce} > {mahalle}")
@@ -1060,27 +1063,7 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
 
     if sinir_var:
         if _total_result_count(tum_sonuclar) == 0 and centroid_lat and centroid_lon:
-            print(f"  Boundary returned 0 places; trying ~{EXPANDED_FALLBACK_RADIUS_M}m radius fallback...")
-            fallback_sonuclar = fetch_all_kategoriler_by_radius(
-                centroid_lat,
-                centroid_lon,
-                radius_m=EXPANDED_FALLBACK_RADIUS_M,
-            )
-            if fallback_sonuclar is not None and _total_result_count(fallback_sonuclar) > 0:
-                tum_sonuclar = fallback_sonuclar
-                sinir_var = False
-                veri_kaynagi = "osm_sinir_yetersiz_yaklasik_yaricap"
-            else:
-                print(f"  Radius fallback returned 0 places; trying ~{WIDE_FALLBACK_RADIUS_M}m wide fallback...")
-                fallback_sonuclar = fetch_all_kategoriler_by_radius(
-                    centroid_lat,
-                    centroid_lon,
-                    radius_m=WIDE_FALLBACK_RADIUS_M,
-                )
-                if fallback_sonuclar is not None and _total_result_count(fallback_sonuclar) > 0:
-                    tum_sonuclar = fallback_sonuclar
-                    sinir_var = False
-                    veri_kaynagi = "osm_sinir_yetersiz_genis_yaricap"
+            print("  Boundary returned 0 places; single radius fallback will be tried if time allows.")
         if _total_result_count(tum_sonuclar) == 0:
             sinir_var = False
             veri_kaynagi = "osm_sinir_veri_yetersiz"
@@ -1140,26 +1123,8 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
         sinir_var = False
         veri_kaynagi = "yaklasik_yaricap_genis"
 
-    if (
-        not sinir_var
-        and _total_result_count(tum_sonuclar) == 0
-        and centroid_lat
-        and centroid_lon
-        and _elapsed_sec(started_at) < LIVE_FETCH_BUDGET_SEC
-    ):
-        print(f"  Wide fallback returned 0 places; trying ~{WIDE_FALLBACK_RADIUS_M}m showcase fallback...")
-        wide_sonuclar = fetch_all_kategoriler_by_radius(
-            centroid_lat,
-            centroid_lon,
-            radius_m=WIDE_FALLBACK_RADIUS_M,
-        )
-        if wide_sonuclar is not None:
-            tum_sonuclar = wide_sonuclar
-        sinir_var = False
-        veri_kaynagi = "yaklasik_yaricap_cok_genis"
-
-    elif not sinir_var and _total_result_count(tum_sonuclar) == 0 and centroid_lat and centroid_lon:
-        print("  İlk çekim 0 tesis döndürdü; süre bütçesi dolduğu için geniş fallback atlandı.")
+    if not sinir_var and _total_result_count(tum_sonuclar) == 0 and centroid_lat and centroid_lon:
+        print("  Çekim 0 tesis döndürdü; daha geniş fallback atlandı.")
         bos_sonuc_gecerli = True
 
     if not sinir_var and _total_result_count(tum_sonuclar) == 0 and not bos_sonuc_gecerli:
@@ -1168,10 +1133,13 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
             result = get_scores_from_db(mahalle_id)
             result["uyari"] = "Canli OSM cekimi basarisiz oldu; mevcut cache sonucu gosteriliyor."
             return result
-        print("  OSM returned 0 places; returning a low-confidence empty result instead of failing.")
-        tum_sonuclar = _empty_kategori_results()
-        veri_kaynagi = veri_kaynagi or "osm_veri_yetersiz"
-        bos_sonuc_gecerli = True
+
+    if _total_result_count(tum_sonuclar) == 0:
+        print("  OSM returned 0 places; returning a low-confidence empty result without saving it.")
+        veri_neden_0 = _zero_result_reason(veri_kaynagi, sinir_var, centroid_lat, centroid_lon)
+        raise RuntimeError(
+            f"{veri_neden_0} Sonuc 0 oldugu icin skor uretilmedi ve veritabanina kaydedilmedi."
+        )
 
     all_counts = {}
     save_centroid_to_db(mahalle_id, centroid_lat, centroid_lon, yaklasik=not sinir_var)

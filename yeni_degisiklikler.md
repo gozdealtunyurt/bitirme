@@ -116,3 +116,54 @@ python -m py_compile backend\osm_service.py backend\api.py
 ```
 
 Kontrol basarili oldu.
+
+## 10. Son hizlandirma ayarlari
+
+Canli veri cekiminin cok uzun surmesi nedeniyle ek hiz ayarlari yapildi:
+
+- Overpass HTTP timeout degeri 15 saniyeden 10 saniyeye indirildi.
+- Overpass sunucu deneme sayisi 1'e indirildi.
+- Canli veri cekim butcesi 70 saniyeden 35 saniyeye indirildi.
+- Overpass sorgu ic timeoutlari 18 saniyeden 12 saniyeye, radius sorgularinda 10 saniyeye cekildi.
+- Nominatim HTTP timeout degeri 10 saniyeden 6 saniyeye indirildi.
+- Nominatim icin gereksiz alternatif sorgular azaltildi.
+- 5000 metrelik cok genis otomatik fallback kaldirildi.
+- Sinir 0 tesis dondururse ayni radius fallback'in tekrar tekrar calismasi engellendi.
+
+Bu ayarlar, tek mahalle sorgusunun daha hizli karar vermesini saglar. Sonuc 0 gelirse veritabanina basarili cekim olarak kaydedilmez; ayni mahalle tekrar cagrildiginda sistem yeniden canli veri cekmeyi dener.
+
+## 11. 0 sonuc nedenini aciklama
+
+0 sonuc dondugunde kullanicinin ve gelistiricinin sebebi daha kolay anlamasi icin API cevabina `veri_neden_0` alani eklendi.
+
+Bu alan, 0 sonuc durumunda su tur aciklamalardan birini dondurur:
+
+- Mahalle icin guvenilir merkez koordinat bulunamadi.
+- OSM'de mahalle siniri bulundu ancak bu sinir icinde secili tesis tag'leri bulunamadi.
+- Mahalle merkezi bulundu ancak genis yaricap icinde secili tesis tag'leri bulunamadi.
+- Mahalle siniri bulunamadi ve yaricap sorgusunda da secili tesis tag'leri bulunamadi.
+- OSM/Nominatim alan veya tesis verisi bu mahalle icin yetersiz dondu.
+
+Bu degisiklik sadece bos sonuc aciklamasini iyilestirir; 0 sonuc yine veritabanina basarili cekim olarak kaydedilmez.
+
+## 12. Bundan sonraki not tutma kurali
+
+Bu noktadan sonra projede yapilan her yeni kod veya davranis degisikligi bu `yeni_degisiklikler.md` dosyasina da eklenecek.
+
+## 13. 0 sonuc artik skor olarak dondurulmuyor
+
+Kullanicinin "0 gelsin istemiyorum" istegi uzerine bos veri davranisi degistirildi.
+
+Onceki davranis:
+
+- OSM/Nominatim/Overpass tum denemelerden sonra 0 tesis donerse API dusuk guvenli, 0 skorlu gecici bir response donduruyordu.
+- Bu response veritabanina basarili cekim olarak kaydedilmiyordu, fakat ekranda yine 0 skor gorunebiliyordu.
+
+Yeni davranis:
+
+- Tum veri cekme denemeleri 0 tesisle sonuclanirsa API artik 0 skor response'u dondurmez.
+- Bunun yerine aciklayici hata uretir.
+- Sonuc yine veritabanina kaydedilmez.
+- Ayni mahalle tekrar cagrildiginda sistem yeniden canli veri cekmeyi dener.
+
+Bu sayede veri yetersizligi, gercek bir mahalle skoru gibi 0 puan olarak gosterilmez.
