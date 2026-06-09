@@ -105,6 +105,11 @@ function App() {
       osm_iceren_alan: "OSM içeren alan",
       yaklasik_yaricap: "Yaklaşık yarıçap",
       yaklasik_yaricap_genis: "Geniş yaklaşık yarıçap",
+      yaklasik_yaricap_cok_genis: "Çok geniş yaklaşık yarıçap",
+      ilce_fallback: "İlçe merkezi yaklaşık veri",
+      sehir_fallback: "Şehir merkezi yaklaşık veri",
+      osm_veri_yetersiz: "Veri yetersiz",
+      osm_sinir_veri_yetersiz: "Sınır verisi yetersiz",
     })[source] || "Veri kaynağı";
 
   const formatFetchedDate = (value) => {
