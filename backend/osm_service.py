@@ -219,8 +219,11 @@ def _nominatim_area_id(osm_type: str, osm_id: int) -> Optional[int]:
 
 def _matches_place_context(result: dict, sehir: str, ilce: str) -> bool:
     text = _tr_lower(result.get("display_name", ""))
-    sehir_ok = _tr_lower(sehir) in text
-    ilce_ok = _tr_lower(_normalize_ilce(ilce)) in text or _tr_lower(ilce) in text
+    address = result.get("address") or {}
+    address_text = _tr_lower(" ".join(str(v) for v in address.values() if v))
+    context_text = f"{text} {address_text}"
+    sehir_ok = _tr_lower(sehir) in context_text
+    ilce_ok = _tr_lower(_normalize_ilce(ilce)) in context_text or _tr_lower(ilce) in context_text
     return sehir_ok and ilce_ok
 
 
@@ -244,7 +247,7 @@ def _names_similar(candidate: str, target: str) -> bool:
         return False
     if candidate_core == target_core:
         return True
-    return SequenceMatcher(None, candidate_core, target_core).ratio() >= 0.86
+    return SequenceMatcher(None, candidate_core, target_core).ratio() >= 0.80
 
 
 def _nominatim_candidate_names(result: dict) -> list[str]:
@@ -382,6 +385,8 @@ def _fetch_centroid_from_nominatim(sehir: str, ilce: str, mahalle: str) -> Tuple
     queries = [
         f"{mahalle_core} Mahallesi, {ilce_norm}, {sehir}, Turkey",
         f"{mahalle_core}, {ilce_norm}, {sehir}, Turkey",
+        f"{mahalle_core} {ilce_norm} {sehir}",
+        f"{mahalle_core}, {sehir}, Turkey",
     ]
 
     headers = {"User-Agent": "MahalleScore/1.0 (educational project)"}
@@ -415,6 +420,80 @@ def _fetch_centroid_from_nominatim(sehir: str, ilce: str, mahalle: str) -> Tuple
             print(f"  Nominatim hata: {e}")
             continue
 
+    return None, None
+
+
+def _fetch_place_center_from_overpass(sehir: str, ilce: str, mahalle: str) -> Tuple[Optional[float], Optional[float]]:
+    """Mahalle sınırı yoksa ilçe içinde aynı adlı OSM place node/way arar."""
+    sehir_lines = _relation_union_lines(4, _name_variants(sehir))
+    ilce_lines = _relation_union_lines(6, _ilce_name_variants(ilce), "area.sehir")
+    name_filters = []
+    for name in _name_variants(mahalle):
+        safe = _escape_overpass(name)
+        name_filters.append(f'nwr(area.ilce)["name"="{safe}"]["place"];')
+        name_filters.append(f'nwr(area.ilce)["name:tr"="{safe}"]["place"];')
+
+    query = f"""
+    [out:json][timeout:8];
+    (
+      {sehir_lines}
+    )->.sehirRel;
+    .sehirRel map_to_area -> .sehir;
+    (
+      {ilce_lines}
+    )->.ilceRel;
+    .ilceRel map_to_area -> .ilce;
+    (
+      {' '.join(name_filters)}
+    );
+    out center tags qt;
+    """
+    data = overpass_query(query, max_retries=1, timeout_sec=8)
+    if not data:
+        return None, None
+
+    for el in data.get("elements", []):
+        tags = el.get("tags", {})
+        name = tags.get("name") or tags.get("name:tr") or ""
+        if not _names_similar(name, mahalle):
+            continue
+        center = el.get("center", {})
+        lat = el.get("lat") or center.get("lat")
+        lon = el.get("lon") or center.get("lon")
+        if lat and lon:
+            print(f"  OSM place merkezi bulundu: {lat:.4f}, {lon:.4f}")
+            return float(lat), float(lon)
+    return None, None
+
+
+def _fetch_ilce_center_from_nominatim(sehir: str, ilce: str) -> Tuple[Optional[float], Optional[float]]:
+    """Son çare: mahalle merkezi yoksa ilçe merkezini yaklaşık fallback için kullanır."""
+    ilce_norm = _normalize_ilce(ilce)
+    headers = {"User-Agent": "MahalleScore/1.0 (educational project)"}
+    try:
+        resp = requests.get(
+            NOMINATIM_URL,
+            params={
+                "q": f"{ilce_norm}, {sehir}, Turkey",
+                "format": "json",
+                "limit": 3,
+                "countrycodes": "tr",
+                "addressdetails": 1,
+                "namedetails": 1,
+            },
+            headers=headers,
+            timeout=6,
+        )
+        if resp.status_code != 200:
+            return None, None
+        for item in resp.json():
+            if _matches_place_context(item, sehir, ilce):
+                lat = float(item["lat"])
+                lon = float(item["lon"])
+                print(f"  İlçe merkezi yaklaşık fallback için kullanıldı: {lat:.4f}, {lon:.4f}")
+                return lat, lon
+    except Exception as e:
+        print(f"  İlçe merkezi Nominatim hatası: {e}")
     return None, None
 
 
@@ -520,6 +599,10 @@ def _zero_result_reason(veri_kaynagi: Optional[str], sinir_var: bool, centroid_l
         return "OSM'de mahalle siniri bulundu ancak bu sinir icinde secili tesis tag'leri bulunamadi."
     if veri_kaynagi == "yaklasik_yaricap_genis":
         return f"Mahalle merkezi bulundu ancak {EXPANDED_FALLBACK_RADIUS_M}m yaricap icinde secili tesis tag'leri bulunamadi."
+    if veri_kaynagi == "ilce_merkezi_genis_yaricap":
+        return "Mahalle merkezi bulunamadigi icin ilce merkeziyle genis yaklasik arama yapildi; secili tesis tag'leri bulunamadi."
+    if veri_kaynagi == "ilce_merkezi_yaklasik_yaricap":
+        return "Mahalle merkezi bulunamadigi icin ilce merkeziyle yaklasik arama yapildi; secili tesis tag'leri bulunamadi."
     if veri_kaynagi == "yaklasik_yaricap":
         return f"Mahalle siniri bulunamadi; {FALLBACK_RADIUS_M}m yaricap icinde secili tesis tag'leri bulunamadi."
     if veri_kaynagi in ("nominatim_osm_sinir", "osm_iceren_alan", "osm_sinir") or sinir_var:
@@ -1041,6 +1124,7 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
 
     print(f"OSM'den çekiliyor: {sehir} > {ilce} > {mahalle}")
     bos_sonuc_gecerli = False
+    ilce_merkezi_fallback = False
 
     # 1. En doğru mod: OSM idari mahalle sınırı içinden çek.
     centroid_lat, centroid_lon, tum_sonuclar = fetch_boundary_snapshot(sehir, ilce, mahalle)
@@ -1077,8 +1161,17 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
             centroid_lat, centroid_lon = _fetch_centroid_from_nominatim(sehir, ilce, mahalle)
 
         if not centroid_lat:
-            print("  Nominatim merkez bulamadı; son çare idari sınır merkezi deneniyor...")
+            print("  Nominatim merkez bulamadı; OSM place merkezi deneniyor...")
+            centroid_lat, centroid_lon = _fetch_place_center_from_overpass(sehir, ilce, mahalle)
+
+        if not centroid_lat:
+            print("  OSM place merkezi bulunamadı; idari sınır merkezi deneniyor...")
             centroid_lat, centroid_lon = _fetch_centroid_from_boundary(sehir, ilce, mahalle)
+
+        if not centroid_lat:
+            print("  Mahalle merkezi bulunamadı; ilçe merkeziyle yaklaşık fallback deneniyor...")
+            centroid_lat, centroid_lon = _fetch_ilce_center_from_nominatim(sehir, ilce)
+            ilce_merkezi_fallback = bool(centroid_lat and centroid_lon)
 
         if not centroid_lat:
             print("  Merkez bulunamadı, veri çekilemeyecek.")
@@ -1089,7 +1182,7 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
             raise RuntimeError("OSM/Nominatim bu mahalle icin merkez veya sinir verisi dondurmedi.")
 
         print(f"  Çekim modu: yaklaşık ~{FALLBACK_RADIUS_M}m yarıçap")
-        veri_kaynagi = "yaklasik_yaricap"
+        veri_kaynagi = "ilce_merkezi_yaklasik_yaricap" if ilce_merkezi_fallback else "yaklasik_yaricap"
         tum_sonuclar = fetch_all_kategoriler_by_radius(centroid_lat, centroid_lon)
 
         if tum_sonuclar is None:
@@ -1121,7 +1214,7 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
                 return result
             raise RuntimeError("OSM/Overpass yogun veya yanit vermiyor; bu mahalle icin skor su an hesaplanamadi.")
         sinir_var = False
-        veri_kaynagi = "yaklasik_yaricap_genis"
+        veri_kaynagi = "ilce_merkezi_genis_yaricap" if ilce_merkezi_fallback else "yaklasik_yaricap_genis"
 
     if not sinir_var and _total_result_count(tum_sonuclar) == 0 and centroid_lat and centroid_lon:
         print("  Çekim 0 tesis döndürdü; daha geniş fallback atlandı.")
@@ -1152,6 +1245,7 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
     skorlar, toplam, detaylar = hesapla_tum_skorlar(mahalle_id)
     last_fetched_iso = datetime.now().isoformat()
     veri_yetersiz = _total_result_count(tum_sonuclar) == 0
+    ilce_merkezi_kullanildi = veri_kaynagi in ("ilce_merkezi_yaklasik_yaricap", "ilce_merkezi_genis_yaricap")
 
     return {
         "mahalle_id": mahalle_id,
@@ -1161,12 +1255,15 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
         "last_fetched": last_fetched_iso,
         "yaklasik_alan": not sinir_var,
         "veri_kaynagi": veri_kaynagi,
-        "veri_guveni": "dusuk" if veri_yetersiz else ("yuksek" if sinir_var else "orta"),
+        "veri_guveni": "dusuk" if (veri_yetersiz or ilce_merkezi_kullanildi) else ("yuksek" if sinir_var else "orta"),
         "veri_uyarisi": (
             "OSM'de bu mahalle icin yeterli tesis verisi bulunamadigi icin skorlar veri yetersiz olarak gosterilmistir."
             if veri_yetersiz else (
+                "Mahalle merkezi OSM/Nominatim'de bulunamadigi icin veriler ilce merkezi etrafindaki yaklasik yaricapla hesaplanmistir; karsilastirma dusuk guvenlidir."
+                if ilce_merkezi_kullanildi else (
                 "OSM'de idari mahalle siniri bulunamadigi veya sinir verisi yetersiz oldugu icin veriler merkez koordinat etrafindaki yaklasik yaricapla hesaplanmistir."
                 if not sinir_var else None
+                )
             )
         ),
         "counts": all_counts,

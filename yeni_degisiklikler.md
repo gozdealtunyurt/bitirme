@@ -167,3 +167,19 @@ Yeni davranis:
 - Ayni mahalle tekrar cagrildiginda sistem yeniden canli veri cekmeyi dener.
 
 Bu sayede veri yetersizligi, gercek bir mahalle skoru gibi 0 puan olarak gosterilmez.
+
+## 14. Sinir olmayan mahalleler icin daha makul yaklasik veri akisi
+
+OSM'de cok sayida mahallenin resmi siniri veya polygon'u olmadigi icin akisin sadece sinir/polygon bulmaya fazla bagimli kalmasi dogru degildi. Bu nedenle merkez bulma ve yaklasik yaricap fallback mantigi daha pratik hale getirildi.
+
+Yapilan degisiklikler:
+
+- Nominatim sonuc eslestirmesi biraz gevsetildi; `display_name` disinda `address` alanlari da il/ilce baglami icin kullaniliyor.
+- Mahalle adi benzerlik esigi makul seviyeye indirildi.
+- Nominatim merkez aramasina ek sorgu varyasyonlari geri eklendi.
+- OSM'de resmi sinir yoksa ilce icinde ayni isimli `place` node/way arayan Overpass fallback'i eklendi.
+- Mahalle merkezi hic bulunamazsa son care olarak ilce merkeziyle yaklasik yaricap fallback eklendi.
+- Ilce merkezi kullanilirsa veri kaynagi `ilce_merkezi_yaklasik_yaricap` veya `ilce_merkezi_genis_yaricap` olarak isaretleniyor.
+- Ilce merkezi fallback sonuclari dusuk guvenli kabul ediliyor ve API uyarisi buna gore donuyor.
+
+Bu degisiklikle siniri olmayan ama OSM'de yer adi veya en azindan ilce merkezi bulunan mahallelerde sistem tamamen hata vermek yerine yaklasik veri uretmeye calisir. Resmi sinir varsa hala once sinir kullanilir.
