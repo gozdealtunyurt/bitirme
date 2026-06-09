@@ -656,7 +656,7 @@ def fetch_boundary_snapshot_from_containing_area(sehir: str, ilce: str, mahalle:
     """
     data = overpass_query(query, max_retries=1, timeout_sec=6)
     if not data:
-        return None, None, None
+        return lat, lon, None
 
     candidates = []
     for el in data.get("elements", []):
@@ -666,11 +666,11 @@ def fetch_boundary_snapshot_from_containing_area(sehir: str, ilce: str, mahalle:
             candidates.append(el)
 
     if not candidates:
-        return None, None, None
+        return lat, lon, None
 
     area_id = candidates[0].get("id")
     if not area_id:
-        return None, None, None
+        return lat, lon, None
 
     nwr_lines = _build_nwr_lines("area.mahalle")
     query = f"""
@@ -683,7 +683,7 @@ def fetch_boundary_snapshot_from_containing_area(sehir: str, ilce: str, mahalle:
     """
     data = overpass_query(query, timeout_sec=18)
     if data is None:
-        return None, None, None
+        return lat, lon, None
 
     print(f"  Merkez noktanın içinde bulunduğu OSM alanı kullanıldı (area {area_id}): {lat:.4f}, {lon:.4f}")
     return lat, lon, _parse_all_kategoriler(data)
@@ -982,7 +982,8 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
         print("  Çekim modu: idari mahalle sınırı")
     else:
         print("  Mahalle sınırı bulunamadı; merkez + yarıçap fallback kullanılacak.")
-        centroid_lat, centroid_lon = get_centroid_from_db(mahalle_id)
+        if not centroid_lat or not centroid_lon:
+            centroid_lat, centroid_lon = get_centroid_from_db(mahalle_id)
         if not centroid_lat:
             print("  Mahalle merkezi Nominatim'den aranıyor...")
             centroid_lat, centroid_lon = _fetch_centroid_from_nominatim(sehir, ilce, mahalle)
