@@ -515,6 +515,63 @@ def _empty_kategori_results() -> dict[str, list]:
     return {k: [] for k in KATEGORILER}
 
 
+def _ring_area_score(ring: list) -> float:
+    """Kabaca en büyük polygon halkasını seçmek için shoelace alanı."""
+    if not ring or len(ring) < 4:
+        return 0.0
+    score = 0.0
+    for i in range(len(ring) - 1):
+        lon1, lat1 = ring[i][0], ring[i][1]
+        lon2, lat2 = ring[i + 1][0], ring[i + 1][1]
+        score += (lon1 * lat2) - (lon2 * lat1)
+    return abs(score)
+
+
+def _sample_ring(ring: list, max_points: int = 120) -> list:
+    if len(ring) <= max_points:
+        return ring
+    step = max(1, len(ring) // max_points)
+    sampled = ring[::step]
+    if sampled[-1] != ring[-1]:
+        sampled.append(ring[-1])
+    return sampled
+
+
+def _geojson_to_overpass_poly(geojson: dict) -> Optional[str]:
+    """
+    Nominatim GeoJSON polygon'unu Overpass poly formatına çevirir.
+    GeoJSON koordinatı lon/lat, Overpass poly formatı lat lon ister.
+    """
+    if not geojson:
+        return None
+
+    rings = []
+    if geojson.get("type") == "Polygon":
+        coords = geojson.get("coordinates") or []
+        if coords:
+            rings.append(coords[0])
+    elif geojson.get("type") == "MultiPolygon":
+        for polygon in geojson.get("coordinates") or []:
+            if polygon:
+                rings.append(polygon[0])
+
+    if not rings:
+        return None
+
+    ring = max(rings, key=_ring_area_score)
+    ring = _sample_ring(ring)
+    pairs = []
+    for point in ring:
+        if len(point) < 2:
+            continue
+        lon, lat = point[0], point[1]
+        pairs.append(f"{float(lat):.7f} {float(lon):.7f}")
+
+    if len(pairs) < 4:
+        return None
+    return " ".join(pairs)
+
+
 def _extract_boundary_center(data: dict) -> Tuple[Optional[float], Optional[float]]:
     """Kombine Overpass yanıtındaki mahalle relation merkezini döndürür."""
     for el in data.get("elements", []):
@@ -606,8 +663,17 @@ def fetch_boundary_snapshot_from_nominatim(sehir: str, ilce: str, mahalle: str) 
 
             item = _select_nominatim_result(resp.json(), sehir, ilce, mahalle, require_polygon=True)
             if item:
+                geojson = item.get("geojson") or {}
+                poly = _geojson_to_overpass_poly(geojson)
                 area_id = _nominatim_area_id(item.get("osm_type"), item.get("osm_id"))
                 if not area_id:
+                    if poly:
+                        polygon_results = fetch_all_kategoriler_by_polygon(poly)
+                        if polygon_results is not None:
+                            lat = float(item["lat"])
+                            lon = float(item["lon"])
+                            print(f"  Nominatim harita polygon'u kullanıldı: {lat:.4f}, {lon:.4f}")
+                            return lat, lon, polygon_results
                     time.sleep(1)
                     continue
 
@@ -625,11 +691,23 @@ def fetch_boundary_snapshot_from_nominatim(sehir: str, ilce: str, mahalle: str) 
 
                 data = overpass_query(query, timeout_sec=18)
                 if data is None:
+                    if poly:
+                        polygon_results = fetch_all_kategoriler_by_polygon(poly)
+                        if polygon_results is not None:
+                            print(f"  Nominatim harita polygon'u kullanıldı: {lat:.4f}, {lon:.4f}")
+                            return lat, lon, polygon_results
                     time.sleep(1)
                     continue
 
+                results = _parse_all_kategoriler(data)
+                if _total_result_count(results) == 0 and poly:
+                    polygon_results = fetch_all_kategoriler_by_polygon(poly)
+                    if polygon_results is not None and _total_result_count(polygon_results) > 0:
+                        print(f"  Nominatim harita polygon'u kullanıldı: {lat:.4f}, {lon:.4f}")
+                        return lat, lon, polygon_results
+
                 print(f"  Nominatim OSM alanı kullanıldı ({item.get('osm_type')} {item.get('osm_id')}): {lat:.4f}, {lon:.4f}")
-                return lat, lon, _parse_all_kategoriler(data)
+                return lat, lon, results
 
             time.sleep(1)
         except Exception as e:
@@ -718,6 +796,22 @@ def fetch_all_kategoriler_by_boundary(sehir: str, ilce: str, mahalle: str) -> di
     data = overpass_query(query, timeout_sec=18)
     if not data:
         return {k: [] for k in KATEGORILER}
+    return _parse_all_kategoriler(data)
+
+
+def fetch_all_kategoriler_by_polygon(poly: str) -> Optional[dict[str, list]]:
+    """Nominatim/OSM harita polygon'u içindeki tüm kategorileri çeker."""
+    nwr_lines = _build_nwr_lines(f'poly:"{poly}"')
+    query = f"""
+    [out:json][timeout:18];
+    (
+      {nwr_lines}
+    );
+    out center tags qt;
+    """
+    data = overpass_query(query, timeout_sec=18)
+    if data is None:
+        return None
     return _parse_all_kategoriler(data)
 
 
@@ -926,10 +1020,14 @@ def get_mahalle_data(sehir: str, ilce: str, mahalle: str, force_refresh: bool = 
 
     # Cache kontrolü: karşılaştırma ekranı hızlı açılsın diye dolu kayıt varsa döndür.
     # Daha doğru sınır verisi istenirse endpoint'e refresh=true gönderilir.
-    cache_dolu = last_fetched is not None or get_total_kategori_count(mahalle_id) > 0
-    if cache_dolu and not force_refresh:
+    cached_count = get_total_kategori_count(mahalle_id)
+    cache_dolu = last_fetched is not None or cached_count > 0
+    cache_kullanilabilir = cached_count > 0
+    if cache_kullanilabilir and not force_refresh:
         print(f"Cache'den getiriliyor: {mahalle} (son çekim: {last_fetched})")
         return get_scores_from_db(mahalle_id)
+    if cache_dolu and not force_refresh:
+        print(f"  Cache 0 tesis içeriyor; güncel OSM verisi tekrar denenecek: {mahalle}")
 
     print(f"OSM'den çekiliyor: {sehir} > {ilce} > {mahalle}")
     bos_sonuc_gecerli = False
