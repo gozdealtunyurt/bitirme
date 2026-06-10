@@ -110,7 +110,6 @@ function App() {
       sehir_fallback: "Şehir merkezi yaklaşık veri",
       ilce_ortalama_fallback: "İlçe ortalaması referans",
       sehir_ortalama_fallback: "Şehir ortalaması referans",
-      demo_referans_fallback: "Demo referans skor",
       osm_veri_yetersiz: "Veri yetersiz",
       osm_sinir_veri_yetersiz: "Sınır verisi yetersiz",
     })[source] || "Veri kaynağı";

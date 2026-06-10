@@ -761,14 +761,8 @@ def _empty_osm_result(mahalle_id: int, sehir: str, ilce: str, mahalle: str, veri
             }
 
     counts = {kategori: 0 for kategori in KATEGORILER}
-    skorlar = {kategori: 50 for kategori in KATEGORILER}
-    detaylar = {
-        kategori: {
-            "referans_tipi": "demo_referans_fallback",
-            "referans_mahalle_sayisi": 0,
-        }
-        for kategori in KATEGORILER
-    }
+    skorlar = {kategori: 0 for kategori in KATEGORILER}
+    detaylar = {kategori: {} for kategori in KATEGORILER}
     return {
         "mahalle_id": mahalle_id,
         "sehir": sehir,
@@ -776,16 +770,16 @@ def _empty_osm_result(mahalle_id: int, sehir: str, ilce: str, mahalle: str, veri
         "mahalle": mahalle,
         "last_fetched": datetime.now().isoformat(),
         "yaklasik_alan": True,
-        "veri_kaynagi": "demo_referans_fallback",
+        "veri_kaynagi": "osm_veri_yetersiz",
         "veri_guveni": "dusuk",
         "veri_uyarisi": (
-            "Bu mahalle icin yeterli OSM veya kayitli referans verisi bulunamadigi icin sonuc, demo amacli notr referans skor olarak gosterilmistir."
+            "Bu mahalle icin yeterli OSM veya kayitli referans verisi bulunamadigi icin skor hesaplanamamistir."
         ),
         "veri_detay": _zero_result_reason(veri_kaynagi, False, None, None),
         "counts": counts,
         "skorlar": skorlar,
         "skor_detaylari": detaylar,
-        "toplam_skor": 50,
+        "toplam_skor": 0,
     }
 
 
