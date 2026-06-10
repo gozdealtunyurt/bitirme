@@ -1,0 +1,47 @@
+[
+  { "sehir": "\u0130stanbul", "ilce": "Kad\u0131k\u00f6y", "mahalle": "Cafera\u011fa Mah." },
+  { "sehir": "\u0130stanbul", "ilce": "Kad\u0131k\u00f6y", "mahalle": "Osmana\u011fa Mah." },
+  { "sehir": "\u0130stanbul", "ilce": "Kad\u0131k\u00f6y", "mahalle": "Rasimpa\u015fa Mah." },
+  { "sehir": "\u0130stanbul", "ilce": "Kad\u0131k\u00f6y", "mahalle": "Fenerbah\u00e7e Mah." },
+  { "sehir": "\u0130stanbul", "ilce": "Kad\u0131k\u00f6y", "mahalle": "Caddebostan Mah." },
+  { "sehir": "\u0130stanbul", "ilce": "Kad\u0131k\u00f6y", "mahalle": "Suadiye Mah." },
+  { "sehir": "\u0130stanbul", "ilce": "Be\u015fikta\u015f", "mahalle": "Sinanpa\u015fa Mah." },
+  { "sehir": "\u0130stanbul", "ilce": "Be\u015fikta\u015f", "mahalle": "Ortak\u00f6y Mah." },
+  { "sehir": "\u0130stanbul", "ilce": "Be\u015fikta\u015f", "mahalle": "Levent Mah." },
+  { "sehir": "\u0130stanbul", "ilce": "Be\u015fikta\u015f", "mahalle": "Etiler Mah." },
+  { "sehir": "\u0130stanbul", "ilce": "\u015ei\u015fli", "mahalle": "Te\u015fvikiye Mah." },
+  { "sehir": "\u0130stanbul", "ilce": "\u015ei\u015fli", "mahalle": "Me\u015frutiyet Mah." },
+
+  { "sehir": "Ankara", "ilce": "\u00c7ankaya", "mahalle": "K\u0131z\u0131lay Mah." },
+  { "sehir": "Ankara", "ilce": "\u00c7ankaya", "mahalle": "Kavakl\u0131dere Mah." },
+  { "sehir": "Ankara", "ilce": "\u00c7ankaya", "mahalle": "Bah\u00e7elievler Mah." },
+  { "sehir": "Ankara", "ilce": "\u00c7ankaya", "mahalle": "Emek Mah." },
+  { "sehir": "Ankara", "ilce": "\u00c7ankaya", "mahalle": "Ayranc\u0131 Mah." },
+  { "sehir": "Ankara", "ilce": "\u00c7ankaya", "mahalle": "\u00c7ukurambar Mah." },
+  { "sehir": "Ankara", "ilce": "Yenimahalle", "mahalle": "Demetevler Mah." },
+  { "sehir": "Ankara", "ilce": "Yenimahalle", "mahalle": "Bat\u0131kent Mah." },
+
+  { "sehir": "\u0130zmir", "ilce": "Konak", "mahalle": "Alsancak Mah." },
+  { "sehir": "\u0130zmir", "ilce": "Konak", "mahalle": "K\u00fclt\u00fcr Mah." },
+  { "sehir": "\u0130zmir", "ilce": "Konak", "mahalle": "G\u00fczelyal\u0131 Mah." },
+  { "sehir": "\u0130zmir", "ilce": "Kar\u015f\u0131yaka", "mahalle": "Bostanl\u0131 Mah." },
+  { "sehir": "\u0130zmir", "ilce": "Kar\u015f\u0131yaka", "mahalle": "Mavi\u015fehir Mah." },
+  { "sehir": "\u0130zmir", "ilce": "Bornova", "mahalle": "Kaz\u0131mdirik Mah." },
+
+  { "sehir": "Antalya", "ilce": "Muratpa\u015fa", "mahalle": "Fener Mah." },
+  { "sehir": "Antalya", "ilce": "Muratpa\u015fa", "mahalle": "\u00c7a\u011flayan Mah." },
+  { "sehir": "Antalya", "ilce": "Muratpa\u015fa", "mahalle": "\u015eirinyal\u0131 Mah." },
+  { "sehir": "Antalya", "ilce": "Alanya", "mahalle": "Oba Mah." },
+  { "sehir": "Antalya", "ilce": "Alanya", "mahalle": "Saray Mah." },
+  { "sehir": "Antalya", "ilce": "Alanya", "mahalle": "Mahmutlar Mah." },
+
+  { "sehir": "Bursa", "ilce": "Nil\u00fcfer", "mahalle": "G\u00f6r\u00fckle Mah." },
+  { "sehir": "Bursa", "ilce": "Nil\u00fcfer", "mahalle": "\u0130hsaniye Mah." },
+  { "sehir": "Bursa", "ilce": "Nil\u00fcfer", "mahalle": "Be\u015fevler Mah." },
+  { "sehir": "Bursa", "ilce": "Osmangazi", "mahalle": "Alt\u0131parmak Mah." },
+
+  { "sehir": "Eski\u015fehir", "ilce": "Odunpazar\u0131", "mahalle": "Arifiye Mah." },
+  { "sehir": "Eski\u015fehir", "ilce": "Tepeba\u015f\u0131", "mahalle": "Ho\u015fnudiye Mah." },
+  { "sehir": "Konya", "ilce": "Sel\u00e7uklu", "mahalle": "Bosna Hersek Mah." },
+  { "sehir": "Adana", "ilce": "\u00c7ukurova", "mahalle": "Huzurevleri Mah." }
+]

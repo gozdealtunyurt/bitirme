@@ -644,10 +644,131 @@ def _zero_result_reason(veri_kaynagi: Optional[str], sinir_var: bool, centroid_l
     return "OSM/Nominatim alan veya tesis verisi bu mahalle icin yetersiz dondu."
 
 
+def _average_reference_result(mahalle_id: int, sehir: str, ilce: str, level: str) -> Optional[dict]:
+    """OSM sonucu bos kalirsa daha once hesaplanmis ilce/sehir ortalamasini referans alir."""
+    if level not in ("ilce", "sehir"):
+        return None
+
+    where = "m.sehir=%s AND m.ilce=%s AND m.id<>%s"
+    params = [sehir, ilce, mahalle_id]
+    if level == "sehir":
+        where = "m.sehir=%s AND m.id<>%s"
+        params = [sehir, mahalle_id]
+
+    try:
+        conn = get_connection()
+    except Exception as e:
+        print(f"  Referans ortalama DB baglantisi kurulamadi: {e}")
+        return None
+
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            f"""
+            SELECT
+                COUNT(*) AS referans_sayisi,
+                ROUND(AVG(s.saglik)) AS saglik,
+                ROUND(AVG(s.egitim)) AS egitim,
+                ROUND(AVG(s.yesil_alan)) AS yesil_alan,
+                ROUND(AVG(s.ulasim)) AS ulasim,
+                ROUND(AVG(s.sosyal_imkanlar)) AS sosyal_imkanlar,
+                ROUND(AVG(s.toplam_skor)) AS toplam_skor
+            FROM skorlar s
+            JOIN mahalleler m ON m.id = s.mahalle_id
+            WHERE {where} AND s.toplam_skor > 0
+            """,
+            tuple(params),
+        )
+        score_row = cursor.fetchone()
+        referans_sayisi = int(score_row.get("referans_sayisi") or 0) if score_row else 0
+        if referans_sayisi == 0:
+            return None
+
+        cursor.execute(
+            f"""
+            SELECT kategori, ROUND(AVG(tesis_sayisi)) AS ortalama_tesis
+            FROM (
+                SELECT m.id, kv.kategori, COUNT(*) AS tesis_sayisi
+                FROM mahalleler m
+                JOIN kategori_verileri kv ON kv.mahalle_id = m.id
+                WHERE {where}
+                GROUP BY m.id, kv.kategori
+            ) t
+            GROUP BY kategori
+            """,
+            tuple(params),
+        )
+        counts = {kategori: 0 for kategori in KATEGORILER}
+        for row in cursor.fetchall():
+            counts[row["kategori"]] = int(row.get("ortalama_tesis") or 0)
+
+        skorlar = {
+            "saglik": int(score_row.get("saglik") or 0),
+            "egitim": int(score_row.get("egitim") or 0),
+            "yesil_alan": int(score_row.get("yesil_alan") or 0),
+            "ulasim": int(score_row.get("ulasim") or 0),
+            "sosyal_imkanlar": int(score_row.get("sosyal_imkanlar") or 0),
+        }
+        return {
+            "referans_sayisi": referans_sayisi,
+            "counts": counts,
+            "skorlar": skorlar,
+            "toplam_skor": int(score_row.get("toplam_skor") or 0),
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def _empty_osm_result(mahalle_id: int, sehir: str, ilce: str, mahalle: str, veri_kaynagi: Optional[str]) -> dict:
+    for level, source, warning in (
+        (
+            "ilce",
+            "ilce_ortalama_fallback",
+            "Bu mahalle icin yeterli OSM verisi bulunamadigi icin sonuc, ayni ilcedeki hesaplanmis mahallelerin ortalamasina gore yaklasik referans olarak gosterilmistir.",
+        ),
+        (
+            "sehir",
+            "sehir_ortalama_fallback",
+            "Bu mahalle ve ilce icin yeterli OSM verisi bulunamadigi icin sonuc, ayni sehirdeki hesaplanmis mahallelerin ortalamasina gore yaklasik referans olarak gosterilmistir.",
+        ),
+    ):
+        reference = _average_reference_result(mahalle_id, sehir, ilce, level)
+        if reference:
+            detaylar = {
+                kategori: {
+                    "referans_tipi": source,
+                    "referans_mahalle_sayisi": reference["referans_sayisi"],
+                }
+                for kategori in KATEGORILER
+            }
+            return {
+                "mahalle_id": mahalle_id,
+                "sehir": sehir,
+                "ilce": ilce,
+                "mahalle": mahalle,
+                "last_fetched": datetime.now().isoformat(),
+                "yaklasik_alan": True,
+                "veri_kaynagi": source,
+                "veri_guveni": "dusuk",
+                "veri_uyarisi": warning,
+                "veri_detay": _zero_result_reason(veri_kaynagi, False, None, None),
+                "referans_mahalle_sayisi": reference["referans_sayisi"],
+                "counts": reference["counts"],
+                "skorlar": reference["skorlar"],
+                "skor_detaylari": detaylar,
+                "toplam_skor": reference["toplam_skor"],
+            }
+
     counts = {kategori: 0 for kategori in KATEGORILER}
-    skorlar = {kategori: 0 for kategori in KATEGORILER}
-    detaylar = {kategori: {} for kategori in KATEGORILER}
+    skorlar = {kategori: 50 for kategori in KATEGORILER}
+    detaylar = {
+        kategori: {
+            "referans_tipi": "demo_referans_fallback",
+            "referans_mahalle_sayisi": 0,
+        }
+        for kategori in KATEGORILER
+    }
     return {
         "mahalle_id": mahalle_id,
         "sehir": sehir,
@@ -655,16 +776,16 @@ def _empty_osm_result(mahalle_id: int, sehir: str, ilce: str, mahalle: str, veri
         "mahalle": mahalle,
         "last_fetched": datetime.now().isoformat(),
         "yaklasik_alan": True,
-        "veri_kaynagi": "osm_veri_yetersiz",
+        "veri_kaynagi": "demo_referans_fallback",
         "veri_guveni": "dusuk",
         "veri_uyarisi": (
-            "OSM'de bu mahalle icin yeterli tesis verisi bulunamadigi icin skorlar veri yetersiz olarak gosterilmistir."
+            "Bu mahalle icin yeterli OSM veya kayitli referans verisi bulunamadigi icin sonuc, demo amacli notr referans skor olarak gosterilmistir."
         ),
         "veri_detay": _zero_result_reason(veri_kaynagi, False, None, None),
         "counts": counts,
         "skorlar": skorlar,
         "skor_detaylari": detaylar,
-        "toplam_skor": 0,
+        "toplam_skor": 50,
     }
 
 

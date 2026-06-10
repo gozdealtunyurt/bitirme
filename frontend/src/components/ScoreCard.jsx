@@ -19,6 +19,15 @@ function ScoreCard({ kategori, skor1, skor2, count1, count2, detail1, detail2, m
       );
     }
 
+    if (detail.referans_tipi) {
+      return (
+        <div className="score-explain">
+          <span>Yaklaşık referans</span>
+          <span>{detail.referans_mahalle_sayisi ?? 0} mahalle ort.</span>
+        </div>
+      );
+    }
+
     return (
       <div className="score-explain">
         <span>Yakınlık {detail.yakinlik_skoru ?? 0}</span>
