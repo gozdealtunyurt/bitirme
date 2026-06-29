@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#1f6f5f"/>
+    </marker>
+    <style>
+      .title { font: 700 36px Arial, sans-serif; fill: #172033; text-anchor: middle; }
+      .table-title { font: 700 25px Arial, sans-serif; fill: #ffffff; text-anchor: middle; }
+      .field { font: 21px Arial, sans-serif; fill: #172033; }
+      .key { font: 700 21px Arial, sans-serif; fill: #b45309; }
+      .relation { stroke: #1f6f5f; stroke-width: 4; fill: none; }
+      .cardinality { font: 700 23px Arial, sans-serif; fill: #1f6f5f; }
+      .note { font: 600 20px Arial, sans-serif; fill: #5b6472; }
+    </style>
+  </defs>
+  <rect width="1600" height="1100" fill="#ffffff"/>
+  <!-- mahalleler -->
+  <rect x="570" y="100" width="460" height="340" fill="#f2f8f6" stroke="#1f6f5f" stroke-width="4" rx="16"/>
+  <path d="M586 100 H1014 Q1030 100 1030 116 V160 H570 V116 Q570 100 586 100" fill="#1f6f5f"/>
+  <text x="800" y="140" class="table-title">mahalleler</text>
+  <text x="600" y="200" class="key">PK  id</text>
+  <text x="600" y="240" class="field">sehir, ilce, mahalle</text>
+  <text x="600" y="280" class="field">centroid_lat, centroid_lon</text>
+  <text x="600" y="320" class="field">yaklasik_alan</text>
+  <text x="600" y="360" class="field">last_fetched</text>
+  <text x="600" y="400" class="note">UNIQUE (sehir, ilce, mahalle)</text>
+
+  <!-- kategori_verileri -->
+  <rect x="60" y="590" width="450" height="370" fill="#f8faf9" stroke="#1f6f5f" stroke-width="4" rx="16"/>
+  <path d="M76 590 H494 Q510 590 510 606 V650 H60 V606 Q60 590 76 590" fill="#1f6f5f"/>
+  <text x="285" y="630" class="table-title">kategori_verileri</text>
+  <text x="90" y="690" class="key">PK  id</text>
+  <text x="90" y="730" class="key">FK  mahalle_id</text>
+  <text x="90" y="770" class="field">kategori</text>
+  <text x="90" y="810" class="field">osm_id</text>
+  <text x="90" y="850" class="field">isim, tip</text>
+  <text x="90" y="890" class="field">lat, lon</text>
+
+  <!-- skorlar -->
+  <rect x="575" y="590" width="450" height="410" fill="#f8faf9" stroke="#1f6f5f" stroke-width="4" rx="16"/>
+  <path d="M591 590 H1009 Q1025 590 1025 606 V650 H575 V606 Q575 590 591 590" fill="#1f6f5f"/>
+  <text x="800" y="630" class="table-title">skorlar</text>
+  <text x="605" y="690" class="key">PK  id</text>
+  <text x="605" y="730" class="key">FK  mahalle_id (UNIQUE)</text>
+  <text x="605" y="770" class="field">saglik, egitim</text>
+  <text x="605" y="810" class="field">yesil_alan, ulasim</text>
+  <text x="605" y="850" class="field">sosyal_imkanlar</text>
+  <text x="605" y="890" class="field">toplam_skor</text>
+  <text x="605" y="930" class="field">kategori detayları (JSON)</text>
+
+  <!-- kullanici_puanlari -->
+  <rect x="1090" y="590" width="450" height="410" fill="#f8faf9" stroke="#1f6f5f" stroke-width="4" rx="16"/>
+  <path d="M1106 590 H1524 Q1540 590 1540 606 V650 H1090 V606 Q1090 590 1106 590" fill="#1f6f5f"/>
+  <text x="1315" y="630" class="table-title">kullanici_puanlari</text>
+  <text x="1120" y="690" class="key">PK  id</text>
+  <text x="1120" y="730" class="key">FK  mahalle_id</text>
+  <text x="1120" y="770" class="field">kullanici_adi</text>
+  <text x="1120" y="810" class="field">kategori puanları (1–5)</text>
+  <text x="1120" y="850" class="field">genel_puan</text>
+  <text x="1120" y="890" class="field">yorum</text>
+  <text x="1120" y="930" class="field">created_at</text>
+
+  <!-- location_cache -->
+  <rect x="1120" y="120" width="400" height="250" fill="#fff7e8" stroke="#d97706" stroke-width="4" rx="16"/>
+  <path d="M1136 120 H1504 Q1520 120 1520 136 V180 H1120 V136 Q1120 120 1136 120" fill="#d97706"/>
+  <text x="1320" y="160" class="table-title">location_cache</text>
+  <text x="1150" y="225" class="key">PK  anahtar</text>
+  <text x="1150" y="270" class="field">deger (LONGTEXT)</text>
+  <text x="1150" y="325" class="note">Bağımsız önbellek tablosu</text>
+
+  <!-- relations -->
+  <path d="M690 440 V510 H285 V590" class="relation"/>
+  <text x="650" y="480" class="cardinality">1</text>
+  <text x="300" y="565" class="cardinality">N</text>
+
+  <path d="M800 440 V590" class="relation"/>
+  <text x="770" y="480" class="cardinality">1</text>
+  <text x="770" y="565" class="cardinality">1</text>
+
+  <path d="M910 440 V510 H1315 V590" class="relation"/>
+  <text x="925" y="480" class="cardinality">1</text>
+  <text x="1280" y="565" class="cardinality">N</text>
+
+  <text x="800" y="1060" class="note" text-anchor="middle">PK: Birincil anahtar • FK: Yabancı anahtar • 1–N: Bire-çok ilişki • 1–1: Bire-bir ilişki</text>
+</svg>
